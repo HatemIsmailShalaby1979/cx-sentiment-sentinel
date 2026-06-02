@@ -1,0 +1,12 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: cx_sentinel_db
+    environment:
+      POSTGRES_USER: readonly_user
+      POSTGRES_PASSWORD: Thommy@1979
+      POSTGRES_DB: ops_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data

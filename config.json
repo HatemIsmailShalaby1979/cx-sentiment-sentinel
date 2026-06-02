@@ -1,0 +1,7 @@
+{
+  "DB_HOST": "localhost",
+  "DB_PORT": "5432",
+  "DB_NAME": "ops_db",
+  "DB_USER": "readonly_user",
+  "DB_PASS": "your_password"
+}

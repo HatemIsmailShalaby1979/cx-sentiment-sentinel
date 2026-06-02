@@ -1,0 +1,11 @@
+# config/crm_mapping.yaml
+# Ties raw operational client IDs to CRM metadata
+acme-fintech-01:
+  client_name: "Acme Fintech Ltd"
+  account_manager_email: "am-acme@agency.com"
+  slack_channel: "#alert-acme-cx"
+
+global-retail-02:
+  client_name: "Global Retail Inc"
+  account_manager_email: "am-retail@agency.com"
+  slack_channel: "#alert-retail-cx"
