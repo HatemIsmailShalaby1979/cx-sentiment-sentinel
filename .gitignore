@@ -1,2 +1,45 @@
-# Created by venv; see https://docs.python.org/3/library/venv.html
-*
+# --- Secrets: never commit these ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+id_rsa*
+credentials.json
+secrets.json
+*credentials*.json
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+pyvenv.cfg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Local data and outputs ---
+raw_logs/
+output/
+*.log
+*.db
+*.sqlite
+*.sqlite3
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
