@@ -1,27 +1,24 @@
 # CX Sentiment & Churn Sentinel
 
-> Real-time predictive analytics pipeline that monitors call center sentiment and identifies high-risk churn signals before they escalate, utilizing NLP-driven sentiment scoring and probabilistic churn modeling.
+> **Status: building attempt.** The sentiment-scoring and churn-propensity stages
+> run on the sample interaction data included in the repository. The business-impact
+> figures in this file have no recorded method, baseline, or sample, so they are
+> presented below as historical project context, not as measured results. Snapshot
+> 2026-06-02.
 
----
+One of the four building attempts from May–June 2026 — the period when I left a
+twenty-eight-year operations career and started building full time, alone, while
+teaching myself to write software. The thinking here was later absorbed into
+Helix Prime.
 
-## Executive Summary
+## What it does
 
-Reactive churn management is a primary driver of customer attrition and high support costs. This sentinel system processes raw interaction data (transcripts/notes) through an LLM-based sentiment analyzer and a probabilistic churn model. It surfaces "at-risk" accounts to the retention desk with a 48–72 hour lead time, moving the organization from a reactive stance to a proactive customer success model.
+Monitors support interactions, scores sentiment, and scores churn risk, so that
+at-risk accounts can reach a retention queue before they leave. It reads
+interaction logs (transcripts or notes), aggregates sentiment over a rolling
+window, and combines that signal with a churn-propensity model.
 
----
-
-## Business Impact
-
-| Metric | Baseline | Post-Deployment | Delta |
-| --- | --- | --- | --- |
-| Churn Rate | Industry Standard | Targeted reduction | ↓ 15–20% |
-| At-Risk Detection Latency | 30+ days (post-event) | <24 hrs (predictive) | ↓ 95% |
-| Retention Desk Efficiency | Manual discovery | Data-prioritized queue | ↑ 40% throughput |
-| Sentiment Accuracy | Subjective/Manual | Quantitative NLP | Verified |
-
----
-
-## Architecture Overview
+## Architecture overview
 
 ```mermaid
 flowchart LR
@@ -38,42 +35,130 @@ flowchart LR
 
 ```
 
-## Tech Stack Justification
+## What is verified, and what is not
 
-| Component | Technology | Rationale |
-| --- | --- | --- |
-| **Sentiment Analysis** | Transformers / OpenAI | LLMs offer superior nuance vs simple keyword frequency |
-| **Prediction Model** | Scikit-learn | Proven, interpretable classification for churn probability |
-| **Pipeline Orchestration** | Prefect | Robust error handling for intermittent data feeds |
-| **Data Storage** | PostgreSQL | Relational integrity for customer-sentiment time series |
-| **Dashboard** | Streamlit | Fast iteration for retention team UI |
+| Item | Status |
+|---|---|
+| Sentiment scoring pipeline | Runs locally on the sample data. |
+| Rolling sentiment aggregation | Runs locally. |
+| Churn-propensity model | Logistic regression over sentiment-weighted features. Runs locally. |
+| Churn, latency, throughput, and accuracy figures | Historical project context. No method, baseline, or sample is recorded. Not verifiable. |
+| External audit | None. |
 
----
+### Historical project context (unverified)
+
+An earlier version of this file presented the figures below as measured business
+impact. No baseline, sample, or method was ever recorded for any of them, so they
+are reproduced here as the project's own historical claims and marked unverified.
+
+| Claim | Figure | Status |
+|---|---|---|
+| Churn rate | ↓ 15–20% | Unverified historical claim |
+| At-risk detection latency | 30+ days → <24 hrs (↓ 95%) | Unverified historical claim |
+| Retention desk throughput | ↑ 40% | Unverified historical claim |
+| Sentiment accuracy | "Verified" | Unverified historical claim. No accuracy measurement was recorded, so the word "Verified" has been removed. |
+
+## Stack
+
+| Component | Technology | Note |
+|---|---|---|
+| Sentiment analysis | Transformers / OpenAI | Chosen for nuance beyond keyword frequency |
+| Prediction model | Scikit-learn | Interpretable classification for churn probability |
+| Pipeline orchestration | Prefect | Retry and error handling for intermittent data feeds |
+| Data storage | PostgreSQL | Relational storage for customer-sentiment time series |
+| Dashboard | Streamlit | Iteration speed for the retention-team UI |
 
 ## Deployment
 
 ### Prerequisites
 
-* Python 3.11+
-* API access to transcript/data source
+- Python 3.11+
+- Access to a transcript or data source
 
-### Local Setup
+### Local setup
 
-git clone [https://github.com/ThommyShelby79/cx-sentiment-churn-sentinel.git](https://www.google.com/search?q=https://github.com/ThommyShelby79/cx-sentiment-churn-sentinel.git)
-cd cx-sentiment-churn-sentinel
-pip install -r requirements.txt
+    git clone https://github.com/HatemIsmailShalaby1979/cx-sentiment-sentinel.git
+    cd cx-sentiment-sentinel
+    pip install -r requirements.txt
 
 ### Run
 
-python src/ingestion_engine.py --source raw_logs/
-python src/sentiment_model.py --run-batch
-python src/churn_predictor.py --generate-alerts
+    python src/ingestion_engine.py --source raw_logs/
+    python src/sentiment_model.py --run-batch
+    python src/churn_predictor.py --generate-alerts
 
----
+## Security
+
+A database credential was previously committed to this public repository in a
+tracked `.env` file. The owner rotated the credential on 2026-09-25, and the file
+was removed from the index and working tree. The decision is recorded in
+`SECURITY_DECISIONS.md` (SD-001). A literal database password was also removed
+from `docker-compose.yml` on the same date and is now read from the environment,
+failing closed when the variable is absent.
+
+The `.env` file remains reachable in git history. Purging that history is
+outstanding. The residual exposure is information disclosure, not a live
+credential: the database host, port, name, and username, plus the password
+pattern. A purge runbook is recorded in the portfolio security audit.
+
+## Honest boundary
+
+It is a demonstration pipeline, not a deployed service. It does not connect to a
+live CRM, telephony, or ticketing system; it reads files. The churn model is
+trained and demonstrated on sample data and is not validated against a real
+account population. It has no authentication and no access control.
+
+This is not a production deployment claim. There is no external audit, no
+certified data isolation, and no signed security review. No revenue has been
+realised.
+
+## The founder's story
+
+I spent twenty-eight years in contact-centre operations and workforce management.
+Forecasting, scheduling, adherence, service levels, churn. The same problems
+appeared in every company I worked in, and none of the tools solved them properly.
+
+In April 2026 I left that career and started building full time — alone, and
+teaching myself to write software as I went. The first four tools were published
+six weeks later, in May and June 2026. Each one took a single operational problem
+and solved it properly. They were not impressive. They were correct.
+
+Those four tools converged into one idea: **Helix Codex**, an accountable AI
+operating organization. Not an autonomous agent. An organization with a
+constitution, named roles with bounded authority, evidence trails, and a human at
+every consequential boundary. Helix Prime is its operations core.
+
+CX Sentiment & Churn Sentinel is one of the four building attempts. It is
+maintained by one person, with no team and no funding. It has not been externally
+audited and it has not made revenue. Where it is unfinished, this document says
+so.
+
+## Related work
+
+- [Helix Prime](https://github.com/HatemIsmailShalaby1979/Helix-Prime) — the operations core
+- [Helix Education](https://github.com/HatemIsmailShalaby1979/Helix-Education) — event-sourced learning engine
+- [Study Studio](https://github.com/HatemIsmailShalaby1979/Study-Studio) — local-first AI tutor
+- [L&D Command Center](https://github.com/HatemIsmailShalaby1979/L-D-Command-Center) — desktop learning and career workstation
+- [Blue Waves](https://github.com/HatemIsmailShalaby1979/Blue-Waves-) — content studio
+- [LIVE Support Assistant](https://github.com/HatemIsmailShalaby1979/LIVE-Support-Assistant) — explainable support prototype
+- [Full portfolio](https://github.com/HatemIsmailShalaby1979) — the front door
+
+### The 2026 building attempts
+
+- [WFM Forecasting Calculator](https://github.com/HatemIsmailShalaby1979/wfm-forecasting-calculator)
+- [RTA Command Center](https://github.com/HatemIsmailShalaby1979/RTA_command_center)
+- [Dynamic Ops Automation Engine](https://github.com/HatemIsmailShalaby1979/Dynamic-Ops-Automation-Engine)
 
 ## Author
 
-**Hatem Shalaby** — Operations Architect & Automation Engineer
-[LinkedIn](https://linkedin.com/in/hatem-shalaby-7359611a2) · 
-[Portfolio](https://hatemismail2011shalaby.github.io/RTA-Operations-Portfolio/) · 
-[Email](mailto:hatemismail2011@gmail.com)
+**Hatem Ismail Shalaby** — Operations Architect · AI Systems Engineer · Founder
+
+- GitHub: [HatemIsmailShalaby1979](https://github.com/HatemIsmailShalaby1979)
+- LinkedIn: [hatem-shalaby-202902127](https://www.linkedin.com/in/hatem-shalaby-202902127/)
+- Email: hatemshalaby2025@gmail.com
+
+Based in Al Obour City, Al-Qalyubia Governorate, Egypt.
+
+## Licence
+
+MIT
