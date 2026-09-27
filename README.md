@@ -1,119 +1,172 @@
 # CX Sentiment & Churn Sentinel
 
-> **Status: building attempt.** The sentiment-scoring and churn-propensity stages
-> run on the sample interaction data included in the repository. The business-impact
-> figures in this file have no recorded method, baseline, or sample, so they are
-> presented below as historical project context, not as measured results. Snapshot
-> 2026-06-02.
+> **Status: learning exercise, May–June 2026. Not running as committed.** The test
+> suite does not collect: `risk_scorer.py` imports `shared_utils`, which is not in
+> this repository. See "What does not work" below.
+>
+> **On the name.** The repository is called *CX Sentiment & Churn Sentinel*, and
+> that name overpromises. There is **no sentiment analysis and no churn model**
+> anywhere in the code. What is here is a KPI-decay risk scorer. The name is left
+> as-is because the repository is public history; the description below is what the
+> code does.
 
-A precursor to Helix Prime, from the May–June 2026 build period. The thinking
-here was later absorbed into Helix Prime.
+One of four small tools built during the May–June 2026 period, before Helix Prime
+existed. The idea — turn customer-experience KPIs into an account-risk signal —
+was later absorbed into Helix Prime's CX engine. This repository is the sketch,
+not the system.
 
-## What it does
+## What the code is
 
-Monitors support interactions, scores sentiment, and scores churn risk, so that
-at-risk accounts can reach a retention queue before they leave. It reads
-interaction logs (transcripts or notes), aggregates sentiment over a rolling
-window, and combines that signal with a churn-propensity model.
-
-## Architecture overview
-
-```mermaid
-flowchart LR
-    A["Interaction Logs\nTranscripts / Notes"] --> B["Sentiment Processor\nLLM / VADER scoring"]
-    B --> C["Sentiment Aggregator\nRolling 7-day trend"]
-    C --> D["Churn Propensity Model\nLogistic Regression\n+ Sentiment weights"]
-    D --> E{{"Risk Level\nClassifier"}}
-    E -- "High Risk" --> F["Retention Alert\nPriority Queue"]
-    E -- "Stable" --> G["Reporting Dashboard\nSentiment Analytics"]
-    F --> G
-    G --> H[("CRM / Database\nUpdate Status")]
-    style D fill:#1a1a2e,color:#e0e0ff,stroke:#7b7bff
-    style F fill:#1a1a2e,color:#e0e0ff,stroke:#7b7bff
+A five-stage KPI pipeline, written as separate scripts that pass Parquet files to
+each other on disk:
 
 ```
+Postgres views  →  raw_kpi.parquet  →  normalized_kpi.parquet  →  scored_clients.parquet
+   (SQL)              (extract)            (aggregate + decay)        (score + category)
+                                                                    ↓
+                                                    Slack alerts / dashboard feed
+```
 
-## What is verified, and what is not
+| Module | Lines | What it does |
+|---|---:|---|
+| `sql_extractor.py` | 67 | Pulls four KPI views from Postgres via SQLAlchemy |
+| `kpi_aggregator.py` | 153 | Normalises raw extracts into rolling-window aggregates and computes a directional decay signal per KPI |
+| `risk_scorer.py` | 71 | Weighted-decay score, capped at 100, bucketed into Critical / High / Medium / Low |
+| `alert_dispatcher.py` | 31 | Posts alerts to a Slack webhook |
+| `dashboard_feed.py` | 159 | RAG-coloured feed for a dashboard, read from Postgres |
 
-| Item | Status |
-|---|---|
-| Sentiment scoring pipeline | Runs locally on the sample data. |
-| Rolling sentiment aggregation | Runs locally. |
-| Churn-propensity model | Logistic regression over sentiment-weighted features. Runs locally. |
-| Churn, latency, throughput, and accuracy figures | Historical project context. No method, baseline, or sample is recorded. Not verifiable. |
-| External audit | None. |
+The four SQL views are in the repository root (`v_client_aht_trend.sql`,
+`v_client_csat_trend.sql`, `v_client_fcr_trend.sql`, `v_client_sla_trend.sql`).
 
-### Historical project context (unverified)
+**The scoring logic, which is the one piece of real thinking here.** Each KPI
+carries a weight and a direction, because more of a good KPI is not always
+better:
 
-An earlier version of this file presented the figures below as measured business
-impact. No baseline, sample, or method was ever recorded for any of them, so they
-are reproduced here as the project's own historical claims and marked unverified.
+| KPI | Weight | Worse when |
+|---|---:|---|
+| CSAT | 0.40 | lower |
+| SLA | 0.30 | lower |
+| FCR | 0.20 | lower |
+| AHT | 0.10 | **higher** |
 
-| Claim | Figure | Status |
-|---|---|---|
-| Churn rate | ↓ 15–20% | Unverified historical claim |
-| At-risk detection latency | 30+ days → <24 hrs (↓ 95%) | Unverified historical claim |
-| Retention desk throughput | ↑ 40% | Unverified historical claim |
-| Sentiment accuracy | "Verified" | Unverified historical claim. No accuracy measurement was recorded, so the word "Verified" has been removed. |
+Risk per KPI is `decay × weight × 100`; the client's score is the sum, capped at
+100. Thresholds are Critical ≥ 70, High ≥ 50, Medium ≥ 30. Weights and thresholds
+are read from `risk_thresholds.yaml`, so the model is configurable rather than
+hard-coded. That is a weighted heuristic, **not** a fitted model — no training, no
+coefficients, no validation against outcomes.
 
-## Stack
+`docker-compose.yml` starts Postgres 15 and **fails closed** if `POSTGRES_PASSWORD`
+is unset. That part is sound and worth keeping.
 
-| Component | Technology | Note |
-|---|---|---|
-| Sentiment analysis | Transformers / OpenAI | Chosen for nuance beyond keyword frequency |
-| Prediction model | Scikit-learn | Interpretable classification for churn probability |
-| Pipeline orchestration | Prefect | Retry and error handling for intermittent data feeds |
-| Data storage | PostgreSQL | Relational storage for customer-sentiment time series |
-| Dashboard | Streamlit | Iteration speed for the retention-team UI |
+## What does not work
 
-## Deployment
+Stated plainly, because a reader who clones this deserves to know before spending
+an afternoon on it:
 
-### Prerequisites
+- **The test suite cannot run.** `risk_scorer.py`, `sql_extractor.py`, and
+  `alert_dispatcher.py` all do `from shared_utils import ConfigManager`. There is
+  no `shared_utils` package in this repository — it was never copied across from
+  the WFM calculator, where the same module does exist. Measured:
+  `ModuleNotFoundError: No module named 'shared_utils'`.
+- **Two config paths point at directories that do not exist.**
+  `risk_scorer.py` reads `config/risk_thresholds.yaml` and `data/normalized_kpi.parquet`.
+  There is no `config/` directory (the YAML is at the repository root) and no
+  `data/` directory.
+- **No input data of any kind is in the repository.** Every stage needs a Parquet
+  file that nothing produces, because the SQL views require a live Postgres
+  instance that is not provided.
+- **No sentiment analysis exists.** Nothing in the code reads text. There is no
+  NLP dependency, no language model, and no text-scoring function.
+- **No churn model exists.** There is no logistic regression, no scikit-learn, and
+  no fitted coefficients anywhere in the repository.
+- **The declared stack is aspirational.** `requirements.txt` is pandas, pyarrow,
+  fastparquet, sqlalchemy, psycopg2-binary, requests, python-dotenv, pyyaml, and
+  numpy. Earlier revisions of this file listed Transformers/OpenAI, Scikit-learn,
+  Prefect, PostgreSQL, and Streamlit; **four of those five are not in the
+  manifest and are not imported anywhere.**
+- **`alert_dispatcher.py` is a sketch, not a module.** Its body contains the
+  comment `# Using your existing CRM mapping logic...` and reads a
+  `SLACK_WEBHOOK_URL` key that `config.json` does not define.
 
-- Python 3.11+
-- Access to a transcript or data source
+## Repository hygiene, and a security record
 
-### Local setup
+Four files in this repository are debris and should be removed rather than
+described:
 
-    git clone https://github.com/HatemIsmailShalaby1979/cx-sentiment-sentinel.git
-    cd cx-sentiment-sentinel
-    pip install -r requirements.txt
+- `pyvenv.cfg` and `greenlet.h` — virtual-environment artefacts committed by
+  accident.
+- `onfig.env.example.txt` — a mistyped duplicate of `.env.example`.
+- `src_sql_extractor.py` — an unmodified duplicate of `sql_extractor.py`.
+- `config.json` — contains placeholder database fields (`"DB_PASS": "your_password"`).
+  No credential is exposed, but a file with that shape invites someone to fill it
+  in and commit it.
 
-### Run
+**`SECURITY_DECISIONS.md` is the most valuable file in this repository.** It
+records that a real `.env` with a plaintext database password was committed to
+this public repository in `a78d5d8`, how it happened (a `venv`-generated
+`.gitignore` whose only rule was `*`, plus a GitHub web upload that does not
+consult `.gitignore`), and five outstanding actions with owners and statuses.
 
-    python src/ingestion_engine.py --source raw_logs/
-    python src/sentiment_model.py --run-batch
-    python src/churn_predictor.py --generate-alerts
+**The credential state, stated precisely: rotated, still present in git history,
+no longer valid.** The owner confirmed on 2026-09-25 that the exposed credential
+had already been rotated, so the value that was committed is dead and cannot be
+used to authenticate against anything. Removing the file from the working tree
+and the index did not remove it from history — the blob remains reachable from
+`a78d5d8`, and anyone who cloned before 2026-09-25 still holds it. Because the
+credential is rotated, `SECURITY_DECISIONS.md` scopes the residual risk as
+**information disclosure only**: the database host, port, name, and username, plus
+knowledge of the password format the owner uses elsewhere — and that format is
+the real concern, because a pattern reused across services is a lateral-movement
+risk even after one instance is rotated.
 
-## Security
+What remains genuinely outstanding is the history purge (action 3), enabling
+GitHub secret scanning and push protection (action 4), and confirming the
+password pattern is not reused on any other service (action 2). An earlier
+revision of this file claimed the purge had been done. It had not.
 
-This repository had a credential committed to it in its early history. It has been
-rotated, removed, and purged from the git history. Configuration is now read from
-the environment, and `docker-compose.yml` fails closed when a required variable is
-absent. The full record is in `SECURITY_DECISIONS.md`.
+## If you want to run the scoring logic
+
+The engine itself is small and readable, and it works once its dependencies are
+satisfied. Minimum path:
+
+```bash
+# 1. Provide the missing module (or replace the import with plain config reads).
+#    shared_utils.ConfigManager is a thin wrapper over config.json + environment.
+# 2. Put a normalised KPI Parquet at the path the scorer expects:
+#    columns: client_id, kpi, decay_score
+# 3. Then:
+pip install pandas pyarrow
+python -c "from risk_scorer import score_clients; print(score_clients('normalized_kpi.parquet'))"
+```
+
+`categorise_risk(score, thresholds)` in `risk_scorer.py` is pure and has no
+imports beyond the module-level config, so it can be lifted out and used on its
+own.
 
 ## Honest boundary
 
-It is a demonstration pipeline, not a deployed service. It does not connect to a
-live CRM, telephony, or ticketing system; it reads files. The churn model is
-trained and demonstrated on sample data and is not validated against a real
-account population. It has no authentication and no access control.
+This is a learning exercise. It was never deployed, never connected to a live
+CRM, telephony, or ticketing system, and never ran against a real account
+population. It has no authentication, no access control, and no tenant isolation.
+No revenue was realised. There is no external audit, no certified data isolation,
+and no signed security review.
 
-This is not a production deployment claim. There is no external audit, no
-certified data isolation, and no signed security review. No revenue has been
-realised.
+Earlier revisions of this file carried business-impact figures (a churn-rate
+reduction, a detection-latency improvement, a throughput gain, an accuracy claim).
+None had a recorded baseline, sample, or method, so none are repeated here. The
+word "Verified" appeared against the sentiment-accuracy row; no accuracy
+measurement was ever recorded.
 
 ## Related work
 
-- [Helix Prime](https://github.com/HatemIsmailShalaby1979/Helix-Prime) — the operations core
+- [Helix Prime](https://github.com/HatemIsmailShalaby1979/Helix-Prime) — the operations core; its CX engine is where this thinking ended up
 - [Helix Education](https://github.com/HatemIsmailShalaby1979/Helix-Education) — event-sourced learning engine
 - [Study Studio](https://github.com/HatemIsmailShalaby1979/Study-Studio) — local-first AI tutor
 - [L&D Command Center](https://github.com/HatemIsmailShalaby1979/L-D-Command-Center) — desktop learning and career workstation
 - [Blue Waves](https://github.com/HatemIsmailShalaby1979/Blue-Waves-) — content studio
-- [LIVE Support Assistant](https://github.com/HatemIsmailShalaby1979/LIVE-Support-Assistant) — explainable support prototype
-- [Full portfolio](https://github.com/HatemIsmailShalaby1979) — how this project fits the wider work
+- [Full portfolio](https://github.com/HatemIsmailShalaby1979) — how this fits the wider work
 
-### The 2026 building attempts
+### The other 2026 building attempts
 
 - [WFM Forecasting Calculator](https://github.com/HatemIsmailShalaby1979/wfm-forecasting-calculator)
 - [RTA Command Center](https://github.com/HatemIsmailShalaby1979/RTA_command_center)
