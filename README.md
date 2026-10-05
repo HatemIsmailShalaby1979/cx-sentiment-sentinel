@@ -2,6 +2,20 @@
 
 # CX Sentiment & Churn Sentinel
 
+
+<!-- badges:start -->
+
+![licence](https://img.shields.io/badge/licence-MIT-blue)
+[![last commit](https://img.shields.io/github/last-commit/HatemIsmailShalaby1979/cx-sentiment-sentinel)](https://github.com/HatemIsmailShalaby1979/cx-sentiment-sentinel/commits/main)
+![status](https://img.shields.io/badge/ci-no CI-lightgrey?label=no CI%20(2026-10-02))
+
+*Measured 2026-10-06 — head `8bf3d2c` (2026-10-02); Python.*
+
+<!-- No static test or coverage count is shown here: a frozen
+     number decays silently. Run the suite for a current figure;
+     the CI badge above is the live status. -->
+<!-- badges:end -->
+
 **A precursor to Helix Prime — a KPI-decay risk scorer (the name overpromises).**
 
 ![Status](https://img.shields.io/badge/status-learning--exercise-yellow)
