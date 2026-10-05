@@ -1,0 +1,72 @@
+# Lint-only CI. Read this before adding a test step.
+#
+# WHY THERE IS NO PYTEST STEP HERE, as of 2026-10-05
+# ---------------------------------------------------
+# This repository cannot run its test suite in any environment, and that is a
+# property of the repository rather than of CI. Recorded here so the next
+# reader does not assume the omission was an oversight:
+#
+#   - `test_sentinel.py` is a genuine pytest file (26 assertions, mocked, no
+#     database needed), but it imports `risk_scorer`, which imports
+#     `from shared_utils import ConfigManager`. There is no `shared_utils`
+#     package in this repository, or in any sibling of it, so collection fails
+#     with ModuleNotFoundError before a single test runs.
+#   - `risk_scorer.py`, `alert_dispatcher.py` and `sql_extractor.py` all depend
+#     on that missing module, so the application code itself is not importable
+#     here either.
+#   - `risk_scorer.py` additionally reads `config/risk_thresholds.yaml`, but the
+#     file in this repository is at the repository root, not under `config/`.
+#   - `test_postgres_connection.py` and `test_direct_connection.py` are not
+#     tests. They are connection-probe scripts that need a live PostgreSQL
+#     instance and a `shared_utils.config_manager` module that is absent.
+#
+# So a pytest step would be red from its first run, would get disabled, and
+# would protect nothing. That outcome is worse than having no test step, and it
+# is the reason the previous CI story for this repository was simply absent.
+#
+# WHAT TO DO WHEN THE IMPORT IS FIXED
+# -----------------------------------
+# Reconstruct `shared_utils/config_manager.py`, correct the config path, then add
+# a pytest step running `pytest test_sentinel.py` and delete this comment. The
+# lint step below should stay: it is the one gate that works today.
+#
+# WHAT THIS WORKFLOW DOES CHECK
+# -----------------------------
+# Syntax errors, undefined names, and broken references (E9, F63, F7, F82, F821).
+# That is a real gate and it is verified to fail on an injected syntax error.
+
+name: Lint
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ruff
+        run: python -m pip install --upgrade pip ruff
+
+      - name: Syntax and undefined-name gate
+        # E9 syntax, F63 comparison, F7 syntax-ish, F82 undefined name, F821
+        # undefined name in a name reference. Deliberately narrow: a broader
+        # ruleset would need the application's own conventions settled first,
+        # and a gate that fails on day one protects nothing.
+        run: ruff check --select=E9,F63,F7,F82,F821 --output-format=github .
+
+      - name: Advisory scan
+        continue-on-error: true
+        run: python -m pip install pip-audit && pip-audit -r requirements.txt || true
