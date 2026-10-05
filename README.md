@@ -7,9 +7,9 @@
 
 ![licence](https://img.shields.io/badge/licence-MIT-blue)
 [![last commit](https://img.shields.io/github/last-commit/HatemIsmailShalaby1979/cx-sentiment-sentinel)](https://github.com/HatemIsmailShalaby1979/cx-sentiment-sentinel/commits/main)
-![status](https://img.shields.io/badge/ci-no CI-lightgrey?label=no CI%20(2026-10-02))
+![status](https://img.shields.io/badge/ci-no CI-lightgrey?label=no CI%20(2026-10-05))
 
-*Measured 2026-10-06 — head `8bf3d2c` (2026-10-02); Python.*
+*Measured 2026-10-06 — head `baca5a4` (2026-10-05); Python.*
 
 <!-- No static test or coverage count is shown here: a frozen
      number decays silently. Run the suite for a current figure;
