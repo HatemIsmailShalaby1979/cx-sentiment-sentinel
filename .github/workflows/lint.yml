@@ -70,3 +70,15 @@ jobs:
       - name: Advisory scan
         continue-on-error: true
         run: python -m pip install pip-audit && pip-audit -r requirements.txt || true
+
+      - name: Dependency declaration audit
+        # Fails if a module imported by tracked code is not declared in
+        # requirements.txt. This is the gate that would have caught the
+        # original state of this file, which declared nine floors while the code
+        # imported packages it never declared -- so a clean install could not run
+        # the code and nothing compared the two surfaces.
+        #
+        # The audit reports `shared_utils` as a known gap rather than ignoring
+        # it: that module is genuinely absent, it blocks test collection, and
+        # hiding it would make this gate agree with a broken repository.
+        run: python tooling/audit_dependencies.py
